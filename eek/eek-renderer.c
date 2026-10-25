@@ -211,11 +211,13 @@ eek_renderer_render_keyboard (EekRenderer *self,
     g_return_if_fail (geometry.allocation_width > 0.0);
     g_return_if_fail (geometry.allocation_height > 0.0);
 
-    /* Paint the background covering the entire widget area */
-    gtk_render_background (self->view_context,
-                           cr,
-                           0, 0,
-                           geometry.allocation_width, geometry.allocation_height);
+    /* Local MODEP: gray canvas at 80% opacity. Keycaps and labels
+     * retain full opacity. Upstream notices remain above. */
+    cairo_save(cr);
+    cairo_set_source_rgba(cr, 68.0/255, 68.0/255, 68.0/255, 0.80);
+    cairo_rectangle(cr, 0, 0, geometry.allocation_width, geometry.allocation_height);
+    cairo_fill(cr);
+    cairo_restore(cr);
 
     cairo_save(cr);
     cairo_translate (cr, geometry.widget_to_layout.origin_x, geometry.widget_to_layout.origin_y);

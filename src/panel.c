@@ -1,6 +1,7 @@
 #include "eekboard/eekboard-context-service.h"
 #include "wayland.h"
 #include "panel.h"
+#include "floating-panel.h"
 
 
 // Called from rust
@@ -9,7 +10,7 @@ void
 panel_manager_hide(struct panel_manager *self)
 {
     if (self->window) {
-        gtk_widget_hide (GTK_WIDGET (self->window));
+        floating_panel_hide(self->window);
     }
 }
 
@@ -42,7 +43,7 @@ on_surface_configure(struct squeek_panel_manager *self, PhoshLayerSurface *surfa
 }
 
 static void
-make_widget (struct panel_manager *self)
+make_widget (struct panel_manager *self, guint height)
 {
     if (self->widget) {
         g_error("Widget already present");
@@ -50,7 +51,7 @@ make_widget (struct panel_manager *self)
     self->widget = eek_gtk_keyboard_new (self->state, self->submission, self->state_manager, self->popover);
 
     gtk_widget_set_has_tooltip (self->widget, TRUE);
-    gtk_container_add (GTK_CONTAINER(self->window), self->widget);
+    floating_panel_attach(self->window, self->widget, height, self->state_manager);
     gtk_widget_show_all(self->widget);
 }
 
@@ -60,9 +61,10 @@ make_widget (struct panel_manager *self)
 void
 panel_manager_resize (struct panel_manager *self, uint32_t height)
 {
-    phosh_layer_surface_set_size(self->window, 0, height);
-    phosh_layer_surface_set_exclusive_zone(self->window, height);
-    phosh_layer_surface_wl_surface_commit(self->window);
+    floating_panel_resize(self->window, height);
+    struct squeek_panel_manager *mgr = g_object_get_data(G_OBJECT(self->window), "modep-panel-manager");
+    if (mgr && phosh_layer_surface_get_configured_width(self->window) > 0)
+        on_surface_configure(mgr, self->window);
 }
 
 // Called from rust
@@ -75,13 +77,14 @@ panel_manager_request_widget (struct panel_manager *self, struct wl_output *outp
             PHOSH_TYPE_LAYER_SURFACE,
             "layer-shell", squeek_wayland->layer_shell,
             "wl-output", output,
-            "height", height,
-            "anchor", ZWLR_LAYER_SURFACE_V1_ANCHOR_BOTTOM
+            "height", 0,
+            "anchor", ZWLR_LAYER_SURFACE_V1_ANCHOR_TOP
+            | ZWLR_LAYER_SURFACE_V1_ANCHOR_BOTTOM
             | ZWLR_LAYER_SURFACE_V1_ANCHOR_LEFT
             | ZWLR_LAYER_SURFACE_V1_ANCHOR_RIGHT,
-            "layer", ZWLR_LAYER_SHELL_V1_LAYER_TOP,
+            "layer", ZWLR_LAYER_SHELL_V1_LAYER_OVERLAY,
             "kbd-interactivity", FALSE,
-            "exclusive-zone", height,
+            "exclusive-zone", 0,
             "namespace", "osk",
             NULL
         );
@@ -106,9 +109,10 @@ panel_manager_request_widget (struct panel_manager *self, struct wl_output *outp
     }
 
     if (!self->widget) {
-        make_widget(self);
+        make_widget(self, height);
     }
 
+    g_object_set_data(G_OBJECT(self->window), "modep-panel-manager", mgr);
     gtk_widget_show (GTK_WIDGET(self->window));
 }
 

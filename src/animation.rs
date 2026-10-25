@@ -12,7 +12,8 @@ use crate::outputs::OutputId;
 use crate::panel::PixelSize;
 
 /// The keyboard should hide after this has elapsed to prevent flickering.
-pub const HIDING_TIMEOUT: Duration = Duration::from_millis(200);
+// Local MODEP: allow a 300ms focus-loss grace before automatic dismissal.
+pub const HIDING_TIMEOUT: Duration = Duration::from_millis(300);
 
 /// Description of parameters which influence panel contents
 #[derive(PartialEq, Clone, Debug)]

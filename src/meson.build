@@ -15,6 +15,7 @@ sources = [
   'dbus.c',
   'imservice.c',
   'panel.c',
+  'floating-panel.c',
   'popover.c',
   'server-context-service.c',
   'wayland.c',

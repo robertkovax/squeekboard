@@ -1,89 +1,38 @@
-*squeekboard* - a Wayland on-screen keyboard
-========================================
+# Squeekboard — floating keyboard for Raspberry Pi touchscreens
 
-*Squeekboard* is a keyboard-shaped input method supporting Wayland, built primarily for the *Librem 5* phone.
+A floating edition of [Raspberry Pi Squeekboard](https://github.com/raspberrypi-ui/squeekboard), based on Squeekboard 1.21. Designed for Raspberry Pi OS / Debian Bookworm ARM64 with **labwc on Wayland**.
 
-It squeaks because some Rust got inside.
+- Drag the top handle to move the keyboard; its position survives hide/show until restart.
+- Compact panel with opaque keys over a translucent gray background. Apps remain clickable outside it, and fullscreen apps stay fullscreen.
+- Close with **×**, then tap a text field to reopen. Focus settling reduces hide/show flicker.
+- Includes a wide US URL layout with slash and period keys.
 
-Features
---------
+## Build and install
 
-### Present
+On the Pi, enable your distribution's matching source repositories (`deb-src`), then:
 
-- GTK3
-- Custom keyboard layouts defined in yaml
-- Input purpose dependent keyboard layouts
-- DBus interface to show and hide
-- Use Wayland input method protocol to submit text
-- Use Wayland virtual keyboard protocol
-
-### TODO
-
-- Text prediction/correction
-- Use preedit
-- Submit actions like "next field" using a future Wayland protocol
-- Pick up DBus interface files from /usr/share
-
-Creating layouts
--------------------
-
-If you want to work on layouts, check out the [guide](doc/tutorial.md).
-
-Building
---------
-
-### Dependencies
-
-See `.gitlab-ci.yml` or run `apt-get build-dep .`
-
-### Build from git repo
-
-```bash
-$ git clone https://gitlab.gnome.org/World/Phosh/squeekboard.git
-$ cd squeekboard
-$ mkdir _build
-$ meson _build/
-$ cd _build
-$ ninja
+```sh
+sudo apt update
+sudo apt install git build-essential devscripts
+git clone --branch floating-keyboard https://github.com/robertkovax/squeekboard.git
+cd squeekboard
+sudo apt-get build-dep .
+DEB_BUILD_OPTIONS=parallel=1 CARGO_BUILD_JOBS=1 dpkg-buildpackage -b -us -uc -j1
+sudo apt install ../squeekboard_1.21.0-1+rpt11+floating1_arm64.deb
 ```
 
-To run tests use `ninja test`. To install squeekboard run `ninja install`.
+This replaces the distribution's `squeekboard` package. Keep its previous package or use your distribution's package manager to restore that version. Future distribution upgrades may replace this build.
 
-Running
--------
+Run `squeekboard` inside your Wayland desktop, or log out and back in if your desktop already starts it. Keep **one keyboard instance**: replace an existing startup command rather than adding another. Tap an editable field; drag the handle to reposition; use × to dismiss. Normal layouts and language settings follow upstream Squeekboard. If needed, enable it with `gsettings set org.gnome.desktop.a11y.applications screen-keyboard-enabled true`.
 
-```bash
-$ phoc # if no compatible Wayland compositor is running yet
-$ cd ../build/
-$ src/squeekboard
-```
+For Chromium, use its native Wayland input path: `chromium --ozone-platform=wayland --enable-wayland-ime --wayland-text-input-version=3`. Apply flags through your desktop launcher if it already starts Chromium.
 
-Squeekboard's panel will appear whenever a compatible application requests an input method. Click a text field in any GTK application, like `python3 ./tools/entry.py`.
+## Compatibility and fullscreen gestures
 
-Squeekboard honors the gnome "screen-keyboard-enabled" setting. Either enable this through gnome-settings under accessibility or run:
+Requires compositor support for Wayland layer-shell, virtual keyboard and text-input; the focus-dismiss behavior needs **layer-shell v4**. This is a Wayland keyboard; X11, other compositors, distributions and architectures have not been validated for this edition. Application text-input support is also required.
 
-```bash
-$ gsettings set org.gnome.desktop.a11y.applications screen-keyboard-enabled true
-```
+An optional [native fullscreen helper](contrib/fullscreen/README.md) lets a gesture toggle the active window without simulated F11 key events. It addresses the fullscreen-exit path that caused Chromium page fields to stop accepting keyboard input in our setup. It is separate from the keyboard; install it only if you use such gestures.
 
-Alternatively, force panel visibility manually with:
+## Source and licensing
 
-```bash
-busctl call --user sm.puri.OSK0 /sm/puri/OSK0 sm.puri.OSK0 SetVisible b true
-```
-
-### What the compositor has to support
-
-A compatible compositor has to support the protocols:
-
-- layer-shell
-- virtual-keyboard-v1
-
-It's strongly recommended to support:
-
-- input-method-v2
-
-Developing
-----------
-
-See [`doc/hacking.md`](doc/hacking.md) for this copy, or the [official documentation](https://world.pages.gitlab.gnome.org/Phosh/squeekboard) for the current release.
+Original history, authors and component notices are retained. See [COPYING](COPYING), [AUTHORS](AUTHORS), [debian/copyright](debian/copyright), and [CONTRIBUTION-NOTICE.md](CONTRIBUTION-NOTICE.md). The original project README is [README.upstream.md](README.upstream.md).

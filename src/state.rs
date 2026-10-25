@@ -22,7 +22,10 @@ use crate::util::Rational;
 use std::cmp;
 use std::collections::HashMap;
 use std::env;
-use std::time::Instant;
+use std::time::{Duration, Instant};
+
+// Local MODEP: ignore restored text focus while a background selection settles.
+const SHOWING_SETTLE: Duration = Duration::from_millis(100);
 
 
 #[derive(Clone, Copy, Debug)]
@@ -195,6 +198,8 @@ impl event_loop::Outcome for Outcome {
 #[derive(Clone, Debug)]
 pub struct Application {
     pub im: InputMethod,
+    /// Delay only a fresh appearance; an already visible panel stays responsive.
+    pub show_after: Option<Instant>,
     pub visibility_override: visibility::State,
     pub physical_keyboard: Presence,
     pub debug_mode_enabled: bool,
@@ -225,6 +230,7 @@ impl Application {
     pub fn new(now: Instant) -> Self {
         Self {
             im: InputMethod::InactiveSince(now),
+            show_after: None,
             visibility_override: visibility::State::NotForced,
             physical_keyboard: Presence::Missing,
             debug_mode_enabled: false,
@@ -325,10 +331,16 @@ impl Application {
                 // Both cases spelled out explicitly, rather than by the wildcard,
                 // to not lose the notion that it's the opposition that matters
                 (InputMethod::InactiveSince(_old), InputMethod::Active(new_im), _)
-                => Self {
-                    im: InputMethod::Active(new_im),
-                    visibility_override: visibility::State::NotForced,
-                    ..self
+                => {
+                    let show_after = if self.get_outcome(now).panel == animation::Outcome::Hidden {
+                        Some(now + SHOWING_SETTLE)
+                    } else { None };
+                    Self {
+                        im: InputMethod::Active(new_im),
+                        show_after,
+                        visibility_override: visibility::State::NotForced,
+                        ..self
+                    }
                 },
                 // Avoid triggering animation when old state was forced hidden
                 (InputMethod::Active(_old), InputMethod::InactiveSince(_since), visibility::State::ForcedHidden)
@@ -339,7 +351,11 @@ impl Application {
                 },
                 (InputMethod::Active(_old), InputMethod::InactiveSince(since), _)
                 => Self {
-                    im: InputMethod::InactiveSince(since),
+                    // A cancelled appearance must not start a visible hide grace.
+                    im: InputMethod::InactiveSince(if self.show_after.map_or(false, |at| now < at) {
+                        now - animation::HIDING_TIMEOUT * 2
+                    } else { since }),
+                    show_after: None,
                     visibility_override: visibility::State::NotForced,
                     ..self
                 },
@@ -512,7 +528,11 @@ impl ActorState for Application {
                         (_, visibility::State::ForcedVisible) => visible,
                         (Presence::Present, visibility::State::NotForced) => animation::Outcome::Hidden,
                         (Presence::Missing, visibility::State::NotForced) => match self.im {
-                            InputMethod::Active(_) => visible,
+                            InputMethod::Active(_) => {
+                                if self.show_after.map_or(false, |at| now < at) {
+                                    animation::Outcome::Hidden
+                                } else { visible }
+                            },
                             InputMethod::InactiveSince(since) => {
                                 if now < since + animation::HIDING_TIMEOUT { visible }
                                 else { animation::Outcome::Hidden }
@@ -528,6 +548,12 @@ impl ActorState for Application {
     /// Returns the next time to update the outcome.
     fn get_next_wake(&self, now: Instant) -> Option<Instant> {
         match self {
+            Self {
+                visibility_override: visibility::State::NotForced,
+                im: InputMethod::Active(_),
+                show_after: Some(at),
+                ..
+            } if now < *at => Some(*at),
             Self {
                 visibility_override: visibility::State::NotForced,
                 im: InputMethod::InactiveSince(since),
@@ -630,7 +656,7 @@ pub mod test {
         while let animation::Outcome::Visible{..} = state.get_outcome(now).panel {
             now += Duration::from_millis(1);
             assert!(
-                now < start + Duration::from_millis(250),
+                now < start + animation::HIDING_TIMEOUT + Duration::from_millis(50),
                 "Hiding too slow: {:?}",
                 now.saturating_duration_since(start),
             );
@@ -660,7 +686,7 @@ pub mod test {
         while let animation::Outcome::Visible{..} = state.get_outcome(now).panel {
             now += Duration::from_millis(1);
             assert!(
-                now < start + Duration::from_millis(250),
+                now < start + animation::HIDING_TIMEOUT + Duration::from_millis(50),
                 "Still not hidden: {:?}",
                 now.saturating_duration_since(start),
             );
@@ -754,6 +780,36 @@ pub mod test {
             now.saturating_duration_since(start),
         );
 
+    }
+
+    // Local MODEP regression: reactivating an old entry during a background
+    // click must never expose the panel, including during the hide grace.
+    #[test]
+    fn cancelled_refocus_never_shows() {
+        let now = Instant::now();
+        let state = application_with_fake_output(now - Duration::from_secs(1));
+        let state = state.apply_event(Event::InputMethod(InputMethod::Active(imdetails_new())), now);
+        assert_eq!(state.get_outcome(now).panel, animation::Outcome::Hidden);
+        assert_eq!(state.get_next_wake(now), Some(now + SHOWING_SETTLE));
+        let end = now + Duration::from_millis(10);
+        let state = state.apply_event(Event::InputMethod(InputMethod::InactiveSince(end)), end);
+        for millis in 0..1000 {
+            assert_eq!(state.get_outcome(end + Duration::from_millis(millis)).panel,
+                       animation::Outcome::Hidden);
+        }
+    }
+
+    #[test]
+    fn sustained_refocus_shows_after_settling() {
+        let now = Instant::now();
+        let state = application_with_fake_output(now - Duration::from_secs(1));
+        let state = state.apply_event(Event::InputMethod(InputMethod::Active(imdetails_new())), now);
+        assert_eq!(state.get_outcome(now + SHOWING_SETTLE / 2).panel, animation::Outcome::Hidden);
+        assert_matches!(state.get_outcome(now + SHOWING_SETTLE).panel, animation::Outcome::Visible{..});
+        let end = now + SHOWING_SETTLE;
+        let state = state.apply_event(Event::InputMethod(InputMethod::InactiveSince(end)), end);
+        assert_matches!(state.get_outcome(end + animation::HIDING_TIMEOUT / 2).panel, animation::Outcome::Visible{..});
+        assert_eq!(state.get_outcome(end + animation::HIDING_TIMEOUT).panel, animation::Outcome::Hidden);
     }
 
     #[test]

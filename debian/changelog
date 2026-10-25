@@ -1,3 +1,11 @@
+squeekboard (1.21.0-1+rpt11+floating1) bookworm; urgency=medium
+
+  * Floating keyboard edition: draggable overlay, native focus dismissal,
+    wide URL layout, opaque keys and a translucent gray canvas.
+  * Preserve upstream authorship and component copyright/license notices.
+
+ -- robertkovax <robertkovax@users.noreply.github.com>  Sun, 25 Oct 2026 12:00:00 +0100
+
 squeekboard (1.21.0-1+rpt10) bookworm; urgency=medium
 
   * Check for existence of files in prerm

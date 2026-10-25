@@ -114,7 +114,7 @@ registry_handle_global (void *data,
 
     if (!strcmp (interface, zwlr_layer_shell_v1_interface.name)) {
         wayland->layer_shell = wl_registry_bind (registry, name,
-            &zwlr_layer_shell_v1_interface, 1);
+            &zwlr_layer_shell_v1_interface, MIN(version, 4));
     } else if (!strcmp (interface, zwp_virtual_keyboard_manager_v1_interface.name)) {
         wayland->virtual_keyboard_manager = wl_registry_bind(registry, name,
             &zwp_virtual_keyboard_manager_v1_interface, 1);

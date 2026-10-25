@@ -1,4 +1,5 @@
-/* Keyboard style */
+/* Keyboard style. Local MODEP: opaque keycaps over a translucent canvas.
+ * Upstream authors and licensing are retained in debian/copyright. */
 sq_view {
     background-color: mix(@theme_base_color, @theme_fg_color, 0.1);
     box-shadow:inset 0 1px 0 0 mix(@borders, @theme_base_color, 0.8);
@@ -6,31 +7,31 @@ sq_view {
 
 sq_button {
     color: @theme_fg_color;
-    background: alpha(@theme_fg_color, 0.07); 
-    box-shadow: 0 1px 0 0 rgba(0,0,0,0.2); 
+    background: mix(mix(@theme_base_color, @theme_fg_color, 0.1), @theme_fg_color, 0.07);
+    box-shadow: 0 1px 0 0 rgba(0,0,0,0.2);
 }
 
 sq_button:active {
-    background: alpha(@theme_fg_color, 0.11);
+    background: mix(mix(@theme_base_color, @theme_fg_color, 0.1), @theme_fg_color, 0.11);
 }
 
 sq_button.altline,
 sq_button.special {
-    background: alpha(@theme_fg_color, 0.15); 
+    background: mix(mix(@theme_base_color, @theme_fg_color, 0.1), @theme_fg_color, 0.15);
 }
 
 sq_button.altline:active,
 sq_button.special:active {
-    background: alpha(@theme_fg_color, 0.2);
+    background: mix(mix(@theme_base_color, @theme_fg_color, 0.1), @theme_fg_color, 0.2);
 }
 
 sq_button.latched {
-    background: alpha(@theme_fg_color, 0.2); 
+    background: mix(mix(@theme_base_color, @theme_fg_color, 0.1), @theme_fg_color, 0.2);
     color: alpha(@theme_fg_color, 0.8);
 }
 
 sq_button.locked {
-    background: alpha(@theme_fg_color, 0.5);
+    background: mix(mix(@theme_base_color, @theme_fg_color, 0.1), @theme_fg_color, 0.5);
     color: @theme_base_color;
 }
 
