@@ -31,6 +31,8 @@ For Chromium, use its native Wayland input path: `chromium --ozone-platform=wayl
 
 Requires compositor support for Wayland layer-shell, virtual keyboard, `input-method-v2` and text-input; the focus-dismiss behavior needs **layer-shell v4**. This is a Wayland keyboard; X11, other compositors, distributions and architectures have not been validated for this edition. Application text-input support is also required.
 
+Validation on Bookworm ARM64 (2026-10-25): package build, 67 Meson tests and 64 isolated GTK/Chromium checks passed, including typing after native fullscreen toggles.
+
 An optional [native fullscreen helper](contrib/fullscreen/README.md) lets a gesture toggle the active window without simulated F11 key events. It addresses the fullscreen-exit path that caused Chromium page fields to stop accepting keyboard input in our setup. It is separate from the keyboard; install it only if you use such gestures.
 
 ## Source and licensing
